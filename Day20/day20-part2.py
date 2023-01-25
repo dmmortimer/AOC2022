@@ -3,15 +3,6 @@ test = False
 if test:
     input_file = 'C:/Users/Danielle/AOC2022/Day20/test-input.txt'
 
-decryption_key = 1
-mix_cycles = 1
-
-# Set to true for part two, false for part one
-# Part two isn't very fast but good enough
-if True:
-    decryption_key = 811589153
-    mix_cycles = 10
-
 class NumberNode:
     def __init__(self,value):
         self.value = value
@@ -114,6 +105,9 @@ zero = None # useful entry point to linked list
 
 # static list with ordering for the mix operations
 nodes_to_mix = []
+
+decryption_key = 811589153
+mix_cycles = 10
 
 with open(input_file) as f:
 
