@@ -1,5 +1,7 @@
+import cProfile
+
 input_file = 'C:/Users/Danielle/AOC2022/Day23/input.txt'
-test = False
+test = True
 if test:
     input_file = 'C:/Users/Danielle/AOC2022/Day23/test-input.txt'
 
@@ -7,6 +9,16 @@ if test:
 # list of elves, storing each elf's position as a x,y pair
 # relative to what? we'll use 0,0 to be the upper left of the input data. across is x, down is y.
 elves = []    # each element is (x,y) tuple
+
+# feels like we also need a grid so we can easily check for neighbours
+# a 2-d array with 1s and 0s
+# but what to use as index. can't have negative indexes.
+# make it huuuuuuge? adjust when coordinates go negative?
+# checked ranges, grow slowly e.g. x: -8 .. 80 y: -7 .. 80
+# try offset of 20 and 200x200? and wait for index errors if we go out of bounds
+grid = [[0 for x in range(200)] for y in range(200)]
+# index [y+20][x+20]
+offset = 20
 
 # state: ordering of directions to consider moving in
 
@@ -36,7 +48,6 @@ def count_empty_tiles(elves,print_grid):
             max_x = x
         if max_y == None or y>max_y:
             max_y = y
-    print("x range",min_x,max_x,"y range",min_y,max_y)
     for j in range(min_y,max_y+1):
         s = ''
         for i in range(min_x,max_x+1):
@@ -53,24 +64,35 @@ def count_empty_tiles(elves,print_grid):
 
 def has_adjacent_elves(elf,elves):
     (x,y) = elf
+    x_adjusted = x+offset
+    y_adjusted = y+offset
+    return grid[y_adjusted-1][x_adjusted] == 1 or grid[y_adjusted+1][x_adjusted] == 1 \
+            or grid[y_adjusted][x_adjusted-1] == 1 or grid[y_adjusted+1][x_adjusted-1] == 1 or grid[y_adjusted-1][x_adjusted-1] == 1 \
+            or grid[y_adjusted][x_adjusted+1] == 1 or grid[y_adjusted+1][x_adjusted+1] == 1 or grid[y_adjusted-1][x_adjusted+1] == 1
     return (x,y-1) in elves or (x,y+1) in elves \
             or (x-1,y) in elves or (x-1,y+1) in elves or (x-1,y-1) in elves \
             or (x+1,y) in elves or (x+1,y+1) in elves or (x+1,y-1) in elves
             
 def has_adjacent_elves_in_direction(elf,elves,direction):
     (x,y) = elf
+    x_adjusted = x+offset
+    y_adjusted = y+offset
     match direction:
         case 0:
             # North
+            return grid[y_adjusted-1][x_adjusted-1] == 1 or grid[y_adjusted-1][x_adjusted] == 1 or grid[y_adjusted-1][x_adjusted+1] == 1
             return (x-1,y-1) in elves or (x,y-1) in elves or (x+1,y-1) in elves
         case 1:
             # South
+            return grid[y_adjusted+1][x_adjusted-1] == 1 or grid[y_adjusted+1][x_adjusted] == 1 or grid[y_adjusted+1][x_adjusted+1] == 1
             return (x-1,y+1) in elves or (x,y+1) in elves or (x+1,y+1) in elves
         case 2:
             # West
+            return grid[y_adjusted][x_adjusted-1] == 1 or grid[y_adjusted+1][x_adjusted-1] == 1 or grid[y_adjusted-1][x_adjusted-1] == 1
             return (x-1,y) in elves or (x-1,y+1) in elves or (x-1,y-1) in elves
         case 3:
             # East
+            return grid[y_adjusted][x_adjusted+1] == 1 or grid[y_adjusted+1][x_adjusted+1] == 1 or grid[y_adjusted-1][x_adjusted+1] == 1
             return (x+1,y) in elves or (x+1,y+1) in elves or (x+1,y-1) in elves
 
 def move_in_direction(elf,direction):
@@ -89,21 +111,7 @@ def move_in_direction(elf,direction):
             # East
             return (x+1,y)
 
-def get_direction_as_string(direction):
-    match direction:
-        case 0:
-            # North
-            return 'N'
-        case 1:
-            # South
-            return 'S'
-        case 2:
-            # West
-            return 'W'
-        case 3:
-            # East
-            return 'E'
-
+# returns the number of elves that moved
 def do_round(elves,starting_direction):
 
     # 0 1 2 3 N S W E
@@ -140,41 +148,51 @@ def do_round(elves,starting_direction):
     for move in valid_moves:
         elf_id = move[0]
         (x,y) = move[1]
+        (old_x,old_y) = elves[elf_id]
+        grid[old_y+offset][old_x+offset] = 0
         elves[elf_id] = (x,y)
+        grid[y+offset][x+offset] = 1
 
-    return
-
-with open(input_file) as f:
-
-    y = 0
-
-    for line in f:
-        x = 0
-        for c in line.strip():
-            if c == '#':
-                elves.append((x,y))
-            x += 1
-        y += 1
-
-print ("There are", len(elves),"elves")
-
-if test:
-    print("Initial state")
-    ans = count_empty_tiles(elves,True)
-
-num_rounds = 100
-
-direction_index = 0
-for round in range(num_rounds):
-    do_round(elves,direction_index)
-    if test:
-        print("==End of round",round+1)
-        ans = count_empty_tiles(elves,True)
-    else:
-        ans = count_empty_tiles(elves,False)
-    direction_index = (direction_index+1)%4
+    return len(valid_moves)
 
 
-print("After",num_rounds,"rounds, there are",ans,"empty tiles in the smallest rectangle that contains every elf")
+def doit():
+    with open(input_file) as f:
 
-# part one complete. ran kind of slowly though. let's see what part two brings...
+        y = 0
+
+        for line in f:
+            x = 0
+            for c in line.strip():
+                if c == '#':
+                    elves.append((x,y))
+                    grid[y+offset][x+offset] = 1
+                x += 1
+            y += 1
+
+    print ("There are", len(elves),"elves")
+
+    num_rounds = 10
+    round = 0
+
+    direction_index = 0
+    movement = True
+    while movement:
+        movement = do_round(elves,direction_index)
+        round += 1
+        # premature termination to get some stats
+        if False and round == 100:
+            movement = False
+        direction_index = (direction_index+1)%4
+        #print("In round",round, movement, "elves moved")
+
+
+    print("The first round where no elf moves is round",round)
+
+cProfile.run('doit()')
+
+# speed up has_adjacent_elves and has_adjacent_elves_in_direction
+'''
+    25580    1.878    0.000    1.878    0.000 day23-part2.py:55(has_adjacent_elves)
+    87752    3.476    0.000    3.476    0.000 day23-part2.py:61(has_adjacent_elves_in_direction)
+'''
